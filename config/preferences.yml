@@ -1,0 +1,50 @@
+# OPTIONAL SECTION
+# Options for region:
+# * nam - North America/South America
+# * emea - Europe, Middle East, Africa
+# * apjc - Asia Pacific, Japan, and China
+# If not set or spelled incorrectly, will default to NAM
+default-region: nam
+
+# OPTIONAL SECTION 
+# Set the name and UUID so it auto-loads your default organization
+# Only needed if you're an admin in multiple orgs
+default-organization:
+  name: "" 
+  uuid: ""
+
+# *** MANDATORY SECTION ***
+# Set the configs for loading credentials
+# For this to work properly, you need an object
+# for both SecureX and AMP.
+#
+# Example config to load credentials from 1Password
+# - name: "amp"
+#  load-from: 1password
+#  friendly-name: "Secure Endpoint API Credentials"
+#  credentials-path: "op://Private/uniqueid"
+#  id-key-name: "username"
+#  secret-key-name: "credential"
+#
+# Example config to load credentials from text file
+# - name: "securex"
+#  load-from: file
+#  friendly-name: "Secure Endpoint API Credentials"
+#  credentials-path: "op://Private/uniqueid"
+#  id-key-name: "username"
+#  secret-key-name: "credential"
+#
+credentials:
+  - name: "securex"
+    load-from: ""
+    friendly-name: ""
+    credentials-path: ""
+    id-key-name: ""
+    secret-key-name: ""
+  - name: "amp"
+    load-from: ""
+    friendly-name: ""
+    credentials-path: ""
+    id-key-name: ""
+    secret-key-name: ""
+
