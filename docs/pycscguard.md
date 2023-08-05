@@ -1,8 +1,8 @@
-# Secure Endpoint Credentials Toolkit  (credtool.py)
+# Secure Endpoint Credentials Toolkit  (pycscguard.py)
 The credentials management tool will eventually allow you to access secrets stored via the 1Password Connect Server, AWS Secrets Manager, and Azure Key Vault. There are no plans to expand the functionality beyond those at the moment.
 
 ## get_op_secret ()
-This function gets a secret using the 1Password API and returns it in a dictionary.
+This function gets a secret using the 1Password CLI and returns it in a dictionary.
 
 > Note: If you have multiple organizations, you will need to run `op signin` to select the correct organization.
 > 
