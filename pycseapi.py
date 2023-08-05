@@ -56,6 +56,8 @@ class SecureEndpointApi:
     #         };
     #     return organizations
 
+
+    # Haven't tested yet
     def move_computer( self, connector_guid, group_guid ):
         
         request_headers = {
