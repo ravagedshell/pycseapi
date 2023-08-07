@@ -6,7 +6,8 @@ class CredentialManager:
         
         self.credentials = {
             "amp" : {},
-            "securex" : {}
+            "securex" : {},
+            "umbrella" : {}
         }
 
         self.preferencesfile = preferencesfile
@@ -15,6 +16,7 @@ class CredentialManager:
         # Load config.yml and preferences 
         self.apiconfig = self.load_yaml_file( file="config/config.yml" )
         self.preferences = self.load_yaml_file( file=self.preferencesfile )
+        self.umbrella_auth_url = self.apiconfig["umbrella"]["global"]
 
         # Load our Secrets
         self.load_secrets()
@@ -34,6 +36,7 @@ class CredentialManager:
                 self.v3_auth_url = self.apiconfig["securex"]["nam"]
                 # Defaulting to NAM; need some way to notify user they have incorrectly configured region
     
+
 
     # Load and Return Yaml File as Dictionary
     def load_yaml_file( self, file ):
@@ -140,7 +143,8 @@ class CredentialManager:
         return False
     
 
-                    
+    # To authenticate to the CSE v3 API, we must first generate
+    # a SecureX API Token; then pass this to the CSE API  
     def get_securex_token(self):
 
         # Define the headers used in authentication to the SecureX/XDR API
@@ -200,4 +204,36 @@ class CredentialManager:
             return request.json().get("access_token")
         else:
             return False
+    
+
+    # For the latest version of the Umbrella API, we must generate
+    # a token; older versions only use basic auth
+    def get_umbrella_token(self):
         
+        # Define the headers used in authentication to the Secure Endpoint API
+        request_headers = {
+            "Content-Type" : "application/x-www-form-urlencoded",
+        }
+
+        # Define grant type
+        request_payload = {
+            "grant_type" : "client_credentials"
+        }
+
+        # Sent the POST Request to the Secure Endpoint API
+        request = requests.post(
+            f"{self.umbrella_auth_url}/auth/v2/token",
+            headers=request_headers,
+            data=request_payload,
+            auth=( 
+                self.credentials["umbrella"]["client_id"],
+                self.credentials["umbrella"]["secret_key"]
+                )
+        )
+
+        # If OK, return just the access token string, else return false
+        if( request.status_code == requests.codes.ok ):
+            return request.json().get("access_token")
+        else:
+            return False
+    
