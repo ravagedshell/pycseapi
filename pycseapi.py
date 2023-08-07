@@ -24,6 +24,10 @@ class SecureEndpointApi:
             raise Exception( f"Could not read or locate the preferences file at {self.preferencesfile}" )
         return preferences
     
+    ### v3 API Functions ### 
+    ### /v3/
+    
+    # Returns a list of organizations and UUIDs
     def get_organizations( self, limit=10, start=0 ):
         request_headers = {
             "Authorization" : f"Bearer {self.v3_token}"
@@ -57,7 +61,24 @@ class SecureEndpointApi:
     #     return organizations
 
 
-    # Haven't tested yet
+
+    
+
+    # v1 API Functions 
+
+
+    ### v1/computers ###
+    # Return a list of computers
+    def get_computers(self, start=0, limit=50):
+        return False
+    
+
+    # Fetch information about a specific connector, given a GUID
+    def get_connector( self, uuid ):
+        return False
+    
+
+    # Moves a connector from it's current group to the given group
     def move_computer( self, connector_guid, group_guid ):
         
         request_headers = {
@@ -78,7 +99,55 @@ class SecureEndpointApi:
         )
         return request.json()
     
+    def delete_connector( self, uuid,confirm=False ):
+        return False
+    
+    # Returns Device Trajectory infomration from a given connector
+    # and associated activity SHA
+    def get_device_trajectory( self, uuid, sha ):
+        return False
 
+    # Fetch a list of computers where a particular username has been observed
+    def get_user_activity( self, username ):
+        return False
+    
+    # Returns trajecotry information on a connector where a specific username
+    # was observed
+    def get_user_trajectory( self, username, uuid ):
+        return False
+    
+    # Get a list of vulnerabilities for a given connector UUID
+    def get_vulns( self, uuid ):
+        return False
+    
+    # Get a list of Operating System specific vulnerabilities for
+    # a given connector UUID
+    def get_os_vulns( self, uuid ):
+        return False
+    
+    # Returns a list of computers matching a specific quert paramter
+    # i.e. indicators
+    def get_computer_activity( self, query ):
+        return False
+    
+    ## ISOLATION FEATURES ##
+    ### v1/computers/{uuid}/isolation
 
+    # Checks whether a computer has the option to be isolated
+    # based on policy and org config
+    def check_isolation_availability( self, uuid ):
+        return False
 
+    # Gets the status of the computer as to whether it's isolated
+    # or not
+    def get_isolation_status( self, uuid ):
+        return False
+    
+    # Isolates the computer to communicate only with the AMP cloud
+    def start_isolation( self, uuid, confirmation=False ):
+        return False
 
+    # Stops the isolation of a computer to return it to normal operating status
+    def stop_isolation( self, uuid, confirmation=False):
+        return False
+    
