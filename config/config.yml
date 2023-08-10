@@ -9,3 +9,6 @@ amp:
   nam:  "https://api.amp.cisco.com/v3"
   emea: "https://api.eu.amp.cisco.com/v3"
   apjc: "https://api.apjc.amp.cisco.com/v3"
+
+umbrella:
+  global: "https://api.umbrella.com"

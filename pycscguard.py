@@ -1,131 +1,129 @@
-import subprocess, re, requests, yaml, os
+import subprocess
+import re
+import os
+import requests
+import yaml
+
 
 class CredentialManager:
 
-    def __init__( self, region="nam", preferencesfile="preferences.yml" ) -> None:
-        
+    """
+    The CredentialManager object is used for securely accessing secrets
+    and authenticating/generating tokens for the various Cisco Security Cloud APIs
+
+    Args:
+        region (str): Defines the region to connect to; i.e "nam", "emea", or "apjc"
+        preferencesfile (str): Defines the path to load prerfences from; def: references.yml
+    :param region: This defines the region you will attempt to connector; i.e nam, emea, apjc
+    :type region: str
+    """
+    def __init__(self, region="nam", preferencesfile="preferences.yml") -> None:
+        """
+        The __init__ function loads all secrets as defined in preferences file.
+        It will load URLs from config/config.yml, select regions to authenticate to, etc.
+        """
+
+        # Stage dict where we store credentials
         self.credentials = {
             "amp" : {},
             "securex" : {},
             "umbrella" : {}
         }
 
-        self.preferencesfile = preferencesfile
-        self.region = region
+        # Set API Config to Default
+        self.config = {
+            "preferencesfile" : preferencesfile,
+            "configfile" : "config/config.yml",
+            "region" : region,
+            "v3_api_url" : "",
+            "securex_api_url" : "",
+            "umbrella_api_url" : ""
+        }
 
-        # Load config.yml and preferences 
-        self.apiconfig = self.load_yaml_file( file="config/config.yml" )
-        self.preferences = self.load_yaml_file( file=self.preferencesfile )
-        self.umbrella_auth_url = self.apiconfig["umbrella"]["global"]
-
-        # Load our Secrets
+        # Load config.yml and preferences
+        self.apiconfig = self.load_yaml_file(file=self.config["configfile"])
+        self.preferences = self.load_yaml_file(file=self.config["preferencesfile"])
+        self.config["umbrella_api_url"] = f"{self.apiconfig['umbrella']['global']}"
+        # Load all secrets defined in self.preferencesfil
         self.load_secrets()
-    
-        match region:
-            case "nam":
-                self.securex_auth_url = self.apiconfig["securex"]["nam"]
-                self.v3_auth_url = self.apiconfig["amp"]["nam"]
-            case "emea":
-                self.securex_auth_url = self.apiconfig["securex"]["emea"]
-                self.v3_auth_url = self.apiconfig["amp"]["emea"]
-            case "apjc":
-                self.securex_auth_url = self.apiconfig["securex"]["apjc"]
-                self.v3_auth_url = self.apiconfig["amp"]["apjc"]
-            case _:
-                self.securex_auth_url = self.apiconfig["securex"]["nam"]
-                self.v3_auth_url = self.apiconfig["securex"]["nam"]
-                # Defaulting to NAM; need some way to notify user they have incorrectly configured region
-    
 
+        # Set the correct URL per region
+        match self.config["region"]:
+            case "nam":
+                self.config["securex_api_url"] = self.apiconfig["securex"]["nam"]
+                self.config["v3_api_url"] = self.apiconfig["amp"]["nam"]
+            case "emea":
+                self.config["securex_api_url"] = self.apiconfig["securex"]["emea"]
+                self.config["v3_api_url"] = self.apiconfig["amp"]["emea"]
+            case "apjc":
+                self.config["securex_api_url"] = self.apiconfig["securex"]["apjc"]
+                self.config["v3_api_url"] = self.apiconfig["amp"]["apjc"]
+            case _:
+                self.config["securex_api_url"] = self.apiconfig["securex"]["nam"]
+                self.config["v3_api_url"] = self.apiconfig["securex"]["nam"]
 
     # Load and Return Yaml File as Dictionary
-    def load_yaml_file( self, file ):
-        if( os.path.exists( file ) ):
-            try: 
-                with open( file ) as yamlfile:
-                    yamldata = yaml.safe_load( yamlfile )
-            except:
-                raise Exception( f"Failed to parse yaml file at location: {yaml}" )
+    def load_yaml_file(self, file):
+        """
+        Loads a YAML file andreturns the a variable that can be easily read in Python
+
+        Args:
+            file (str): the relative or full path to the yaml file to load
+
+        Returns:
+            yamldata - a dictionary extraced from the YAML file formatted for easy consumption
+        """
+        if os.path.exists(file):
+            try:
+                with open(file, encoding="utf-8") as yamlfile:
+                    yamldata = yaml.safe_load(yamlfile)
+            except Exception as error:
+                raise ValueError(
+                    f"Could not load the preferences file {file}; formatting or encoding bad."
+                    ) from error
+
         else:
-            raise Exception( f"The file specificied does not exist. Could not find {file}" )
+            raise ValueError( f"Could not locate the file specified {file}")
+
         return yamldata
-        
 
-
-    # Get a one password API Secret (standard client App ID, Secret Key format)
-    # and return it in a dictionary
     def get_op_secret(self,base,idkey,secretkey):
-        # Get the API ID and Secret from 1Password
+        """ 
+        Uses the 1Password CLI to fetch a secret and return it in a dictionary
+        
+        Args:
+            base (str): A base path to find the secret in 1password (i.e. op://Vault/uniqueid)
+            idkey (str): A string we can use to pull the username or API ID with (i.e. Username)
+            secretkey (srt): A string we can use to pull the secret with (i.e. Credential)
+        
+        Returns:
+            credentials: A dictionary containing the API Key ID and Secret (or username/password)
+        """
         try:
-             cmd1 = subprocess.Popen( f"op read {base}/{idkey}",shell=True,stdout=subprocess.PIPE )
-             cmd2 = subprocess.Popen( f"op read {base}/{secretkey}",shell=True,stdout=subprocess.PIPE )
-        except:
-            raise Exception("Oops, we were unable to retrieve the credentials from 1Password. Make sure 1Password CLI is installed.")
+            cmd1 = self.run_process(f"op read {base}/{idkey}")
+            cmd2 = self.run_process(f"op read {base}/{secretkey}")
+        except Exception as error:
+            raise ValueError(
+                "Either could not locate 1Password CLI, or the path to the secret is bad"
+                ) from error
+
         # Return a dictionary value for the API Secret
         # Need to implement error handling
         return {
-            "client_id" : re.sub( '\n', '', cmd1.stdout.read().decode() ),
-            "secret_key" : re.sub( '\n', '', cmd2.stdout.read().decode() )
-        }
-    
-
-    # # If the user has configured a text file, it still needs to be in a specific format
-    # # Extract the approriate secrets values during object instantiation
-    # def get_stored_secrets( self, file, type ):
-    #     # Create empty dict that we will store creds in
-    #     credentials = {}
-
-    #     # A list of the regex filter's we'll iterate through
-    #     regex_filters = [
-    #         r'^AMPCLIENTID=(.*)$', 
-    #         r'^AMPAPISECRET=(.*)$' ,
-    #         r'^SECUREXCLIENTID=(.*)$', 
-    #         r'^SECUREXAPISECRET=(.*)$' 
-    #     ]
-
-    #     # If the file exists, iterate through each line and remove the matching regex filter
-    #     # Then load to credentials dict
-
-    #     match type:
-    #         case "amp":
-                
-    #         case "securex":
-    #             r'^SECUREXCLIENTID=(.*)$':
-    #                                 credentials["client_id"] = re.sub( filter, "", match.group(1) )
-    #                             case r'^SECUREXAPISECRET=(.*)$':
-    #                                 credentials["secret_key"] = re.sub( filter, "", match.group(1) )
-
-    #     if( os.path.exists( file ) ):
-    #         with open( file ) as secretsfile:
-    #             for line in secretsfile:
-    #                 for filter in regex_filters:
-    #                     match = re.match( filter, line)
-    #                     if match:
-    #                         match filter:
-    #                             case r'^AMPCLIENTID=(.*)$':
-    #                                 credentials["client_id"] = re.sub( filter, "", match.group(1) )
-    #                             case r'^AMPAPISECRET=(.*)$':
-    #                                 credentials["secret_key"] = re.sub( filter, "", match.group(1) )
-
-    #                             case r'^SECUREXCLIENTID=(.*)$':
-    #                                 credentials["client_id"] = re.sub( filter, "", match.group(1) )
-    #                             case r'^SECUREXAPISECRET=(.*)$':
-    #                                 credentials["secret_key"] = re.sub( filter, "", match.group(1) )
-    #     else:
-    #         raise Exception ( f"The file you {file}, was not found. Could not load secrets from file." )
-    #     return credentials
-
+            "client_id" : re.sub('\n', '', cmd1.decode()),
+            "secret_key" : re.sub('\n', '', cmd2.decode())
+            }
 
     def get_asm_secret(self):
-        # This function will get a secret stored in AWS Secrets Manager
+        """ Gets a secret stored in AWS Secrets Mgt and returns a dict"""
         return False
-    
+
     def get_akv_secret(self):
-        # This function will get a secret stored in Azure Key Vault
+        """ Gets a secret stored in Azure Key Vault and returns a dict"""
         return False
-    
 
     def load_secrets(self):
+        """Loads secrets using the approriate methods based on  load-from preference"""
         for credtype in self.preferences["credentials"]:
             name = credtype["name"]
             match credtype["load-from"]:
@@ -134,51 +132,42 @@ class CredentialManager:
                             base = credtype["credentials-path"],
                             idkey = credtype["id-key-name"],
                             secretkey= credtype["secret-key-name"]
-                        )
-                # case "file":
-                #     self.get_stored_secrets(
-                #         file = credtype["credentials-path"],
-                #         type = credtype["name"]
-                #      )
+                    )
         return False
-    
 
-    # To authenticate to the CSE v3 API, we must first generate
-    # a SecureX API Token; then pass this to the CSE API  
     def get_securex_token(self):
+        """Authenticates to SecureX and returns the Token"""
 
-        # Define the headers used in authentication to the SecureX/XDR API
+        # Define Request Headers
         request_headers = {
             "Content-Type" : "application/x-www-form-urlencoded",
             "Accept" :  "application/json"
         }
-
         # Define  grant type
         request_payload = {
             "grant_type" : "client_credentials"
         }
 
-        # Send the POST request to the SecureX API
-        request = requests.post(
-            f"{self.securex_auth_url}/iroh/oauth2/token",
-            headers=request_headers,
-            auth=( 
-                self.credentials["securex"]["client_id"],
-                self.credentials["securex"]["secret_key"]
-                ),
-            data=request_payload
+        # Define dict for authentication
+        request_auth={
+            "auth_type" : "httpbasic",
+            "username" : self.credentials["securex"]["client_id"],
+            "password" : self.credentials["securex"]["secret_key"]
+        }
+
+        response = self.send_post_request(
+            uri=f"{self.config['securex_api_url']}/iroh/oauth2/token",
+            head=request_headers,
+            payload=request_payload,
+            authentication=request_auth
         )
+        if response is not False:
+            return response.get("access_token")
 
-        # If OK, return just the access token string, else return false
-        if( request.status_code == requests.codes.ok ):
-            return request.json().get("access_token")
-        else:
-            return False
+        return False
 
-    # For access to v3 of the Secure Endpoint API, we must use a token
-    # In order to get said token, we must integrate SE with SecureX and 
-    # get a SecureX token first
     def get_csev3_token(self):
+        """ Authenticates to the CSEv3 API and returns the token"""
 
         # Define the headers used in authentication to the Secure Endpoint API
         request_headers = {
@@ -192,48 +181,100 @@ class CredentialManager:
             "grant_type" : "client_credentials"
         }
 
+        # Define auth type
+        request_auth = {
+            "auth_type" : "bearer"
+        }
+
         # Sent the POST Request to the Secure Endpoint API
-        request = requests.post(
-            f"{self.v3_auth_url}/access_tokens",
-            headers=request_headers,
-            data=request_payload
+        response = self.send_post_request(
+            uri=f"{self.config['v3_api_url']}/access_tokens",
+            head=request_headers,
+            payload=request_payload,
+            authentication=request_auth
         )
 
-        # If OK, return just the access token string, else return false
-        if( request.status_code == requests.codes.ok ):
-            return request.json().get("access_token")
-        else:
-            return False
-    
+        if response is not False:
+            return response.get("access_token")
 
-    # For the latest version of the Umbrella API, we must generate
-    # a token; older versions only use basic auth
+        return False
+
     def get_umbrella_token(self):
-        
-        # Define the headers used in authentication to the Secure Endpoint API
+        """ Send a post request to authenticate and get Umbrella API Token """
         request_headers = {
             "Content-Type" : "application/x-www-form-urlencoded",
         }
-
         # Define grant type
         request_payload = {
             "grant_type" : "client_credentials"
         }
 
-        # Sent the POST Request to the Secure Endpoint API
-        request = requests.post(
-            f"{self.umbrella_auth_url}/auth/v2/token",
-            headers=request_headers,
-            data=request_payload,
-            auth=( 
-                self.credentials["umbrella"]["client_id"],
-                self.credentials["umbrella"]["secret_key"]
-                )
+        # Define Authentication
+        request_auth={
+                "auth_type" : "httpbasic",
+                "username"  : self.credentials["umbrella"]["client_id"],
+                "password"  : self.credentials["umbrella"]["secret_key"]
+        }
+
+        # Sent the POST Request to the Umbrella API
+        response = self.send_post_request(
+            uri=f"{self.config['umbrella_api_url']}/auth/v2/token",
+            head=request_headers,
+            payload=request_payload,
+            authentication=request_auth
         )
 
-        # If OK, return just the access token string, else return false
-        if( request.status_code == requests.codes.ok ):
-            return request.json().get("access_token")
-        else:
-            return False
-    
+        if response is not False:
+            return response.get("access_token")
+
+        return False
+
+    def send_post_request(self, uri, head, payload, authentication):
+        """ 
+        Sends an HTTP POST request and returns the raw data
+
+        Args:
+            url (str): The URL we want to send the request to
+            head (dict): A dictionary containing the headers we want to pass
+            payload (dict): A dictionary containing the payload we want to send
+            authentication (list): A list of username/password to authenticate with
+
+        Returns:
+            response: Dictionary containing response raw data
+        """
+        match authentication["auth_type"]:
+            case "httpbasic":
+                request = requests.post(
+                    url=uri,
+                    headers=head,
+                    data=payload,
+                    auth=(
+                        authentication["username"],
+                        authentication["password"]
+                        ),
+                    timeout=5
+                )
+            case "bearer":
+                request = requests.post(
+                    url=uri,
+                    headers=head,
+                    data=payload,
+                    timeout=5
+                )
+            case _:
+                request = requests.post(
+                    url=uri,
+                    headers=head,
+                    data=payload,
+                    timeout=5
+                )
+
+        if request.status_code == requests.codes.ok:
+            return request.json()
+
+        return False
+
+    def run_process(self, cmd):
+        """ Simple function to run a shell command"""
+        with subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE) as process:
+            return process.stdout.read()
