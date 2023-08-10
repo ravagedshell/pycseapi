@@ -40,9 +40,13 @@ class CredentialManager:
             "umbrella_api_url" : ""
         }
 
+        # Load our script helper; makes things easy and so we can load
+        # it outside of the CredentialManager class usage
+        self.helper = ScriptAssist()
+
         # Load config.yml and preferences
-        self.apiconfig = self.load_yaml_file(file=self.config["configfile"])
-        self.preferences = self.load_yaml_file(file=self.config["preferencesfile"])
+        self.apiconfig = self.helper.load_yaml_file(file=self.config["configfile"])
+        self.preferences = self.helper.load_yaml_file(file=self.config["preferencesfile"])
         self.config["umbrella_api_url"] = f"{self.apiconfig['umbrella']['global']}"
         # Load all secrets defined in self.preferencesfil
         self.load_secrets()
@@ -62,31 +66,6 @@ class CredentialManager:
                 self.config["securex_api_url"] = self.apiconfig["securex"]["nam"]
                 self.config["v3_api_url"] = self.apiconfig["securex"]["nam"]
 
-    # Load and Return Yaml File as Dictionary
-    def load_yaml_file(self, file):
-        """
-        Loads a YAML file andreturns the a variable that can be easily read in Python
-
-        Args:
-            file (str): the relative or full path to the yaml file to load
-
-        Returns:
-            yamldata - a dictionary extraced from the YAML file formatted for easy consumption
-        """
-        if os.path.exists(file):
-            try:
-                with open(file, encoding="utf-8") as yamlfile:
-                    yamldata = yaml.safe_load(yamlfile)
-            except Exception as error:
-                raise ValueError(
-                    f"Could not load the preferences file {file}; formatting or encoding bad."
-                    ) from error
-
-        else:
-            raise ValueError( f"Could not locate the file specified {file}")
-
-        return yamldata
-
     def get_op_secret(self,base,idkey,secretkey):
         """ 
         Uses the 1Password CLI to fetch a secret and return it in a dictionary
@@ -100,8 +79,8 @@ class CredentialManager:
             credentials: A dictionary containing the API Key ID and Secret (or username/password)
         """
         try:
-            cmd1 = self.run_process(f"op read {base}/{idkey}")
-            cmd2 = self.run_process(f"op read {base}/{secretkey}")
+            cmd1 = self.helper.run_process(f"op read {base}/{idkey}")
+            cmd2 = self.helper.run_process(f"op read {base}/{secretkey}")
         except Exception as error:
             raise ValueError(
                 "Either could not locate 1Password CLI, or the path to the secret is bad"
@@ -155,7 +134,7 @@ class CredentialManager:
             "password" : self.credentials["securex"]["secret_key"]
         }
 
-        response = self.send_post_request(
+        response = self.helper.send_post_request(
             uri=f"{self.config['securex_api_url']}/iroh/oauth2/token",
             head=request_headers,
             payload=request_payload,
@@ -187,7 +166,7 @@ class CredentialManager:
         }
 
         # Sent the POST Request to the Secure Endpoint API
-        response = self.send_post_request(
+        response = self.helper.send_post_request(
             uri=f"{self.config['v3_api_url']}/access_tokens",
             head=request_headers,
             payload=request_payload,
@@ -217,7 +196,7 @@ class CredentialManager:
         }
 
         # Sent the POST Request to the Umbrella API
-        response = self.send_post_request(
+        response = self.helper.send_post_request(
             uri=f"{self.config['umbrella_api_url']}/auth/v2/token",
             head=request_headers,
             payload=request_payload,
@@ -228,6 +207,30 @@ class CredentialManager:
             return response.get("access_token")
 
         return False
+
+
+
+
+class ScriptAssist:
+    """ 
+    A simple class that contains some helper functions for common data
+    manipulation, access functions, etc.
+        
+    Args:
+        There are none
+    
+    """
+    def __init__(self) -> None:
+        """
+        Nothing to really initialize here, these are just helper functions
+        that make life easier and aren't specific to authentication, therefore
+        they should be in a seperate class.
+        """
+
+    def run_process(self, cmd):
+        """ Simple function to run a shell command"""
+        with subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE) as process:
+            return process.stdout.read()
 
     def send_post_request(self, uri, head, payload, authentication):
         """ 
@@ -274,7 +277,26 @@ class CredentialManager:
 
         return False
 
-    def run_process(self, cmd):
-        """ Simple function to run a shell command"""
-        with subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE) as process:
-            return process.stdout.read()
+    # Load and Return Yaml File as Dictionary
+    def load_yaml_file(self, file):
+        """
+        Loads a YAML file andreturns the a variable that can be easily read in Python
+
+        Args:
+            file (str): the relative or full path to the yaml file to load
+
+        Returns:
+            yamldata - a dictionary extraced from the YAML file formatted for easy consumption
+        """
+        if os.path.exists(file):
+            try:
+                with open(file, encoding="utf-8") as yamlfile:
+                    yamldata = yaml.safe_load(yamlfile)
+            except Exception as error:
+                raise ValueError(
+                    f"Could not load the preferences file {file}; formatting or encoding bad."
+                    ) from error
+        else:
+            raise ValueError( f"Could not locate the file specified {file}")
+
+        return yamldata
