@@ -228,7 +228,10 @@ class ScriptAssist:
         """
 
     def run_process(self, cmd):
-        """ Simple function to run a shell command"""
+        """ 
+        Simple function to run a shell command
+        I will add some guard rails on this later
+        """
         with subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE) as process:
             return process.stdout.read()
 
