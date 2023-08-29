@@ -235,10 +235,9 @@ class ScriptAssist:
         with subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE) as process:
             return process.stdout.read()
 
-    # dont worry, going to refactor this and break this out easier
-    def send_request(self, method, uri, authentication, head=None, payload=None):
+    def send_request(self, method, uri, authentication, head=None, payload=None, params=None):
         """ 
-        Sends an HTTP POST request to the correct function and returns
+        Sends an HTTP request to the correct function and returns
         a response/error or raw data
 
         Args:
@@ -262,7 +261,8 @@ class ScriptAssist:
             uri=uri,
             authentication=authentication,
             head=head,
-            payload=payload
+            payload=payload,
+            params=params
         )
 
     def check_status_code(self, response):
@@ -278,26 +278,23 @@ class ScriptAssist:
         """
         if response.status_code == (401 or 403):
             response = f"Received HTTP Status Code {response.status_code}, check credentials."
-
-        if response.status_code == 400:
+        elif response.status_code == 400:
             response = f"Received HTTP Status Code {response.status_code}; bad response."
-
-        if response.status_code == 404:
+        elif response.status_code == 404:
             response = f"Ooops, received HTTP Status Code {response.status_code}; Not found"
-
-        if response.status_code >= 500 and response.status_code < 600:
+        elif response.status_code >= 500 and response.status_code < 600:
             response = f"Error: received HTTP Status code {response.status_code}; server error"
-
-        if response.status_code >= 300 and response.status_code < 400:
+        elif response.status_code >= 300 and response.status_code < 400:
             response = f"Redirect: received HTTP Status Code {response.status_code}; resource moved"
-
-        if response.status_code >= 200 and response.status_code < 300:
+        elif response.status_code >= 200 and response.status_code < 300:
             response = response.json()
+        else:
+            reponse = f"Received HTTP status code {response.status_code}; unhandled error"
 
         return response
 
 
-    def send_post_request(self, uri, authentication, head=None, payload=None):
+    def send_post_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP Post request
 
@@ -329,7 +326,7 @@ class ScriptAssist:
 
         return self.check_status_code(request)
 
-    def send_patch_request(self, uri, authentication, head=None, payload=None):
+    def send_patch_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP patch request
 
@@ -360,7 +357,7 @@ class ScriptAssist:
 
         return self.check_status_code(request)
 
-    def send_delete_request(self, uri, authentication, head=None, payload=None):
+    def send_delete_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP Delete request
 
@@ -390,7 +387,7 @@ class ScriptAssist:
 
         return self.check_status_code(request)
 
-    def send_get_request(self, uri, authentication, head=None, payload=None):
+    def send_get_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP get request
 
@@ -416,9 +413,11 @@ class ScriptAssist:
             url=uri,
             headers=head,
             auth=authentication,
+            params=params,
             timeout=5
         )
 
+        print(request.url)
         return self.check_status_code(request)
 
     # Load and Return Yaml File as Dictionary
