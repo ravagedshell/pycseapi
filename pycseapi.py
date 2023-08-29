@@ -88,8 +88,60 @@ class SecureEndpointApi:
     #         };
     #     return organizations
     # ## END V3 API FUNCTIONS
+
+    # ## v1 Audit Log Functions
+    # ### /v1/audit_log
+    def get_audit_log(
+            self,
+            user=None,
+            start=None,
+            end=None,
+            event=None,
+            type=None,
+            limit=50,
+            offset=0
+        ):
+        """
+        Returns a list of events from the audit log
+
+        Args: 
+            username (str): User to filter events for
+            start (str): An ISO timestamp for the earliest dated event to include
+            end (str): An ISO timestamp for the last dated event to include
+            event (str): Events to include, i.e. udpate, create
+            type (str): The audit log type to query
+            limit (int): Max number of records to retreive
+            offset (int): Index of the first record to receive
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "limit" : limit,
+            "offset" : offset
+        }
+        
+        if start and end is not None:
+            query.update("start_time",start)
+            query.update("end_time", end)
+        if event is not None:
+            query.update("event", event)
+        if type is not None:
+            query.update("audit_log_type", type)
+        if user is not None:
+            query.update("audit_log_user", user)
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/audit_logs",
+            params=query
+        )
+
+        return self.check_response(response)
+
     # ## v1 API Computer Functions
-    # ### v1/computers/{uuid}/isolation
+    # ### v1/computers
     def get_computers(
             self,
             start=0,
