@@ -33,7 +33,11 @@ class SecureEndpointApi:
                 preferencesfile= self.config["preferencesfile"]
             )
 
-        self.basic_auth = self.credentials.credentials["amp"]
+        self.basic_auth = {
+            "auth_type" : "httpbasic",
+            "username" : self.credentials.credentials["amp"]["client_id"],
+            "password" : self.credentials.credentials["amp"]["secret_key"]
+        }
 
         self.tokens = {
            "securex" : { 
@@ -83,88 +87,81 @@ class SecureEndpointApi:
     #         };
     #     return organizations
 
-    # v1 API Functions
-
-    # ### v1/computers ###
-    # # Return a list of computers
-    # def get_computers(self, start=0, limit=50):
-    #     return False
-
-    # # Fetch information about a specific connector, given a GUID
-    # def get_connector( self, uuid ):
-    #     return False
-
-    # # Moves a connector from it's current group to the given group
-    # def move_computer( self, connector_guid, group_guid ):
-    #     request_headers = {
-    #         "Authorization" : f"Bearer {self.v3_token}"
-    #     }
-
-    #     request_payload = {
-    #         "op" : "replace",
-    #         "path" : "group_guid",
-    #         "value" : f"{group_guid}"
-    #     }
-
-    #     # Sent the POST Request to the Secure Endpoint API
-    #     request = requests.patch(
-    #         url = f"{self.v1_url}/computers/{connector_guid}",
-    #         auth = ( self.basic_auth["client_id"], self.basic_auth["secret_key"] ),
-    #         data = request_payload
-    #     )
-    #     return request.json()
-
-    # def delete_connector( self, uuid,confirm=False ):
-    #     return False
-
-    # # Returns Device Trajectory infomration from a given connector
-    # # and associated activity SHA
-    # def get_device_trajectory( self, uuid, sha ):
-    #     return False
-
-    # # Fetch a list of computers where a particular username has been observed
-    # def get_user_activity( self, username ):
-    #     return False
-
-    # # Returns trajecotry information on a connector where a specific username
-    # # was observed
-    # def get_user_trajectory( self, username, uuid ):
-    #     return False
-
-    # # Get a list of vulnerabilities for a given connector UUID
-    # def get_vulns( self, uuid ):
-    #     return False
-
-    # # Get a list of Operating System specific vulnerabilities for
-    # # a given connector UUID
-    # def get_os_vulns( self, uuid ):
-    #     return False
-
-    # # Returns a list of computers matching a specific quert paramter
-    # # i.e. indicators
-    # def get_computer_activity( self, query ):
-    #     return False
-
-    # ## ISOLATION FEATURES ##
+    # ## v1 API Computer Functions
     # ### v1/computers/{uuid}/isolation
 
-    # # Checks whether a computer has the option to be isolated
-    # # based on policy and org config
-    # def check_isolation_availability( self, uuid ):
-    #     return False
+    # Get a list of computers Computers
+    # Need to add pagination loop in here
+    def get_computers(self, start=0, limit=50, advancedquery=None):
 
-    # # Gets the status of the computer as to whether it's isolated
-    # # or not
-    # def get_isolation_status( self, uuid ):
-    #     return False
+        query = f"?offset={start}&limit={limit}"
+        if advancedquery is not None:
+            query = f"?offset={start}&limit={limit}&{advancedquery}"
+        
+        headers = {
+            "Accept" : "application/json"
+        }
+    
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri= f"{self.config['v1_url']}/computers/{query}",
+            head=headers
+        )   
 
-    # # Isolates the computer to communicate only with the AMP cloud
-    # def start_isolation( self, uuid, confirmation=False ):
-    #     return False
+        if isinstance(response, dict):
+            return response.get("data")
+    
+    # Get a singular computer by UUID
+    def get_computer_by_uuid(self, computer_uuid):
+        headers = {
+                "Accept" : "application/json"
+            }
 
-    # # Stops the isolation of a computer to return it to normal operating status
-    # def stop_isolation( self, uuid, confirmation=False):
-    #     return False
+        response = self.helper.send_request(
+                method="GET",
+                authentication=self.basic_auth,
+                uri=f"{self.config['v1_url']}/computers/{format(computer_uuid)}",
+                head=headers
+            )
+        
+        if isinstance(response, dict):
+            return response.get("data")
+        
+        return response
+        
+    # Moves a computer to the given group based on UUID
+    def move_computer(self, computer_uuid, group_uuid):
+
+        data = {
+            "group_guid" : group_uuid
+        }
+
+        response = self.helper.send_request(
+            method="PATCH",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{computer_uuid}",
+            payload=data
+        )
+        
+        if isinstance(response, dict):
+            return response.get("data")
+
+        return response
+
+    # Deletes a computer given the UUID
+    def delete_computer(self, computer_uuid):
+
+        response = self.helper.send_request(
+            method="DELETE",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{computer_uuid}"
+        )
+
+        if isinstance(response, dict):
+            return response.get("data")
+        
+        return response
 
     def get_token(self, token):
         """
@@ -203,6 +200,10 @@ class SecureEndpointApi:
                     return True
         return False
 
+
+
+
+
     # def send_v3_post_request(self, uri, payload)
     # def send_get_request( self, uri, head, payload, authentication):
     #     return False
@@ -218,3 +219,6 @@ class SecureEndpointApi:
     #     if request.status_code == '200':
     #         return request.json()
     #     return False
+
+
+    

@@ -134,7 +134,8 @@ class CredentialManager:
             "password" : self.credentials["securex"]["secret_key"]
         }
 
-        response = self.helper.send_post_request(
+        response = self.helper.send_request(
+            method="POST",
             uri=f"{self.config['securex_api_url']}/iroh/oauth2/token",
             head=request_headers,
             payload=request_payload,
@@ -166,7 +167,8 @@ class CredentialManager:
         }
 
         # Sent the POST Request to the Secure Endpoint API
-        response = self.helper.send_post_request(
+        response = self.helper.send_request(
+            method="POST",
             uri=f"{self.config['v3_api_url']}/access_tokens",
             head=request_headers,
             payload=request_payload,
@@ -196,7 +198,8 @@ class CredentialManager:
         }
 
         # Sent the POST Request to the Umbrella API
-        response = self.helper.send_post_request(
+        response = self.helper.send_request(
+            method="POST",
             uri=f"{self.config['umbrella_api_url']}/auth/v2/token",
             head=request_headers,
             payload=request_payload,
@@ -235,7 +238,7 @@ class ScriptAssist:
         with subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE) as process:
             return process.stdout.read()
 
-    def send_post_request(self, uri, head, payload, authentication):
+    def send_request(self, method, uri, authentication, head=None, payload=None):
         """ 
         Sends an HTTP POST request and returns the raw data
 
@@ -248,34 +251,117 @@ class ScriptAssist:
         Returns:
             response: Dictionary containing response raw data
         """
-        match authentication["auth_type"]:
-            case "httpbasic":
-                request = requests.post(
-                    url=uri,
-                    headers=head,
-                    data=payload,
-                    auth=(
-                        authentication["username"],
-                        authentication["password"]
-                        ),
-                    timeout=5
-                )
-            case "bearer":
-                request = requests.post(
-                    url=uri,
-                    headers=head,
-                    data=payload,
-                    timeout=5
-                )
-            case _:
-                request = requests.post(
-                    url=uri,
-                    headers=head,
-                    data=payload,
-                    timeout=5
-                )
 
-        if request.status_code == requests.codes.ok:
+        match method:
+            case "POST":
+                match authentication["auth_type"]:
+                    case "httpbasic":
+                        request = requests.post(
+                            url=uri,
+                            headers=head,
+                            data=payload,
+                            auth=(
+                                authentication["username"],
+                                authentication["password"]
+                                ),
+                            timeout=5
+                        )
+                    case "bearer":
+                        request = requests.post(
+                            url=uri,
+                            headers=head,
+                            data=payload,
+                            timeout=5
+                        )
+                    case _:
+                        request = requests.post(
+                            url=uri,
+                            headers=head,
+                            data=payload,
+                            timeout=5
+                        )
+            case "GET":
+                match authentication["auth_type"]:
+                    case "httpbasic":
+                        request = requests.get(
+                            url=uri,
+                            headers=head,
+                            auth=(
+                                authentication["username"],
+                                authentication["password"]
+                                ),
+                            timeout=5
+                        )
+                    case "bearer":
+                        request = requests.get(
+                            url=uri,
+                            headers=head,
+                            timeout=5
+                        )
+                    case _:
+                        request = requests.get(
+                            url=uri,
+                            headers=head,
+                            timeout=5
+                        )
+            case "DELETE":
+                match authentication["auth_type"]:
+                    case "httpbasic":
+                        request = requests.delete(
+                            url=uri,
+                            headers=head,
+                            auth=(
+                                authentication["username"],
+                                authentication["password"]
+                                ),
+                            timeout=5
+                        )
+                    case "bearer":
+                        request = requests.delete(
+                            url=uri,
+                            headers=head,
+                            timeout=5
+                        )
+                    case _:
+                        request = requests.delete(
+                            url=uri,
+                            headers=head,
+                            timeout=5
+                        )
+            case "PATCH":
+                match authentication["auth_type"]:
+                    case "httpbasic":
+                        request = requests.patch(
+                            url=uri,
+                            auth=(
+                                authentication["username"],
+                                authentication["password"]
+                                ),
+                            data=payload,
+                            timeout=5
+                        )
+                    case "bearer":
+                        request = requests.patch(
+                            url=uri,
+                            headers=head,
+                            data=payload,
+                            timeout=5
+                        )
+                    case _:
+                        request = requests.patch(
+                            url=uri,
+                            headers=head,
+                            data=payload,
+                            timeout=5
+                        )
+
+        if request.status_code == (401 or 403):
+                return f"Received HTTP Status Code {request.status_code}, check credentials/authorization."
+        
+        if request.status_code == 400:
+                return f"Received HTTP Status Code 400; bad request."
+
+        if request.status_code >= 200 and request.status_code < 300:
             return request.json()
 
         return False
