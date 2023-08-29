@@ -211,9 +211,6 @@ class CredentialManager:
 
         return False
 
-
-
-
 class ScriptAssist:
     """ 
     A simple class that contains some helper functions for common data
@@ -238,9 +235,11 @@ class ScriptAssist:
         with subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE) as process:
             return process.stdout.read()
 
+    # dont worry, going to refactor this and break this out easier
     def send_request(self, method, uri, authentication, head=None, payload=None):
         """ 
-        Sends an HTTP POST request and returns the raw data
+        Sends an HTTP POST request to the correct function and returns
+        a response/error or raw data
 
         Args:
             url (str): The URL we want to send the request to
@@ -252,128 +251,175 @@ class ScriptAssist:
             response: Dictionary containing response raw data
         """
 
-        match method:
-            case "POST":
-                match authentication["auth_type"]:
-                    case "httpbasic":
-                        request = requests.post(
-                            url=uri,
-                            headers=head,
-                            data=payload,
-                            auth=(
-                                authentication["username"],
-                                authentication["password"]
-                                ),
-                            timeout=5
-                        )
-                    case "bearer":
-                        request = requests.post(
-                            url=uri,
-                            headers=head,
-                            data=payload,
-                            timeout=5
-                        )
-                    case _:
-                        request = requests.post(
-                            url=uri,
-                            headers=head,
-                            data=payload,
-                            timeout=5
-                        )
-            case "GET":
-                match authentication["auth_type"]:
-                    case "httpbasic":
-                        request = requests.get(
-                            url=uri,
-                            headers=head,
-                            auth=(
-                                authentication["username"],
-                                authentication["password"]
-                                ),
-                            timeout=5
-                        )
-                    case "bearer":
-                        request = requests.get(
-                            url=uri,
-                            headers=head,
-                            timeout=5
-                        )
-                    case _:
-                        request = requests.get(
-                            url=uri,
-                            headers=head,
-                            timeout=5
-                        )
-            case "DELETE":
-                match authentication["auth_type"]:
-                    case "httpbasic":
-                        request = requests.delete(
-                            url=uri,
-                            headers=head,
-                            auth=(
-                                authentication["username"],
-                                authentication["password"]
-                                ),
-                            timeout=5
-                        )
-                    case "bearer":
-                        request = requests.delete(
-                            url=uri,
-                            headers=head,
-                            timeout=5
-                        )
-                    case _:
-                        request = requests.delete(
-                            url=uri,
-                            headers=head,
-                            timeout=5
-                        )
-            case "PATCH":
-                match authentication["auth_type"]:
-                    case "httpbasic":
-                        request = requests.patch(
-                            url=uri,
-                            auth=(
-                                authentication["username"],
-                                authentication["password"]
-                                ),
-                            data=payload,
-                            timeout=5
-                        )
-                    case "bearer":
-                        request = requests.patch(
-                            url=uri,
-                            headers=head,
-                            data=payload,
-                            timeout=5
-                        )
-                    case _:
-                        request = requests.patch(
-                            url=uri,
-                            headers=head,
-                            data=payload,
-                            timeout=5
-                        )
+        method_switcher = {
+            "POST" : self.send_post_request,
+            "PATCH" : self.send_patch_request,
+            "DELETE" : self.send_delete_request,
+            "GET" : self.send_get_request
+        }
 
-        if request.status_code == (401 or 403):
-            response = f"Received HTTP Status Code {request.status_code}, check credentials."
+        return method_switcher.get(method)(
+            uri=uri,
+            authentication=authentication,
+            head=head,
+            payload=payload
+        )
 
-        if request.status_code == 400:
-            response = f"Received HTTP Status Code {request.status_code}; bad request."
+    def check_status_code(self, response):
+        """ 
+        Checks the HTTP Status code received from the request and 
+        returns an error message or the raw data if it succeeded
 
-        if request.status_code == 404:
-            response = f"Ooops, received HTTP Status Code {request.status_code}; Not found"
+        Args:
+            response (json) : Response from the HTTP request
 
-        if request.status_code >= 500 and request.status_code < 600:
-            response = f"Error: received HTTP Status code {request.status_code}; a server error occured"
+        Returns:
+            response: Error code or dictionary containing raw data
+        """
+        if response.status_code == (401 or 403):
+            response = f"Received HTTP Status Code {response.status_code}, check credentials."
 
-        if request.status_code >= 300 and request.status_code < 400:
-            response = f"Redirect: received HTTP Status Code {request.status_code}; resource moved"
+        if response.status_code == 400:
+            response = f"Received HTTP Status Code {response.status_code}; bad response."
 
-        if request.status_code >= 200 and request.status_code < 300:
-            response = request.json()
+        if response.status_code == 404:
+            response = f"Ooops, received HTTP Status Code {response.status_code}; Not found"
+
+        if response.status_code >= 500 and response.status_code < 600:
+            response = f"Error: received HTTP Status code {response.status_code}; server error"
+
+        if response.status_code >= 300 and response.status_code < 400:
+            response = f"Redirect: received HTTP Status Code {response.status_code}; resource moved"
+
+        if response.status_code >= 200 and response.status_code < 300:
+            response = response.json()
 
         return response
+
+
+    def send_post_request(self, uri, authentication, head=None, payload=None):
+        """ 
+        Sends an HTTP Post request
+
+        Args:
+            uri (str) : URL to send the request to
+            authentication (dict) : Dict containing auth method and username/password
+            head (dict) : Dict containing all the headers to send
+            payload (dict) : Dict containing the payload
+
+        Returns:
+            response: Error code or dictionary containing raw data
+        """
+        if authentication["auth_type"] == "bearer":
+            authentication = None
+
+        else:
+            authentication = (
+                authentication["username"],
+                authentication["password"]
+            )
+
+        request = requests.post(
+            url=uri,
+            headers=head,
+            data=payload,
+            auth=authentication,
+            timeout=5
+        )
+
+        return self.check_status_code(request)
+
+    def send_patch_request(self, uri, authentication, head=None, payload=None):
+        """ 
+        Sends an HTTP patch request
+
+        Args:
+            uri (str) : URL to send the request to
+            authentication (dict) : Dict containing auth method and username/password
+            head (dict) : Dict containing all the headers to send
+            payload (dict) : Dict containing the payload
+
+        Returns:
+            response: Error code or dictionary containing raw data
+        """
+        if authentication["auth_type"] == "bearer":
+            authentication = None
+
+        else:
+            authentication = (
+                authentication["username"],
+                authentication["password"]
+            )
+
+        request = requests.patch(
+            url=uri,
+            data=payload,
+            auth=authentication,
+            timeout=5
+        )
+
+        return self.check_status_code(request)
+
+    def send_delete_request(self, uri, authentication, head=None, payload=None):
+        """ 
+        Sends an HTTP Delete request
+
+        Args:
+            uri (str) : URL to send the request to
+            authentication (dict) : Dict containing auth method and username/password
+            head (dict) : Dict containing all the headers to send
+            payload (dict) : Dict containing the payload
+
+        Returns:
+            response: Error code or dictionary containing raw data
+        """
+        if authentication["auth_type"] == "bearer":
+            authentication = None
+
+        else:
+            authentication = (
+                authentication["username"],
+                authentication["password"]
+            )
+
+        request = requests.delete(
+            url=uri,
+            auth=authentication,
+            timeout=5
+        )
+
+        return self.check_status_code(request)
+
+    def send_get_request(self, uri, authentication, head=None, payload=None):
+        """ 
+        Sends an HTTP get request
+
+        Args:
+            uri (str) : URL to send the request to
+            authentication (dict) : Dict containing auth method and username/password
+            head (dict) : Dict containing all the headers to send
+            payload (dict) : Dict containing the payload
+
+        Returns:
+            response: Error code or dictionary containing raw data
+        """
+        if authentication["auth_type"] == "bearer":
+            authentication = None
+
+        else:
+            authentication = (
+                authentication["username"],
+                authentication["password"]
+            )
+
+        request = requests.get(
+            url=uri,
+            headers=head,
+            auth=authentication,
+            timeout=5
+        )
+
+        return self.check_status_code(request)
 
     # Load and Return Yaml File as Dictionary
     def load_yaml_file(self, file):
