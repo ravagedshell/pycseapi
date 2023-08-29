@@ -251,10 +251,10 @@ class ScriptAssist:
         """
 
         method_switcher = {
-            "POST" : self.send_post_request,
-            "PATCH" : self.send_patch_request,
-            "DELETE" : self.send_delete_request,
-            "GET" : self.send_get_request
+            "POST" : self.__send_post_request,
+            "PATCH" : self.__send_patch_request,
+            "DELETE" : self.__send_delete_request,
+            "GET" : self.__send_get_request
         }
 
         return method_switcher.get(method)(
@@ -294,7 +294,7 @@ class ScriptAssist:
         return response
 
 
-    def send_post_request(self, uri, authentication, head=None, payload=None, params=None):
+    def __send_post_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP Post request
 
@@ -326,7 +326,7 @@ class ScriptAssist:
 
         return self.check_status_code(request)
 
-    def send_patch_request(self, uri, authentication, head=None, payload=None, params=None):
+    def __send_patch_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP patch request
 
@@ -357,7 +357,7 @@ class ScriptAssist:
 
         return self.check_status_code(request)
 
-    def send_delete_request(self, uri, authentication, head=None, payload=None, params=None):
+    def __send_delete_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP Delete request
 
@@ -387,7 +387,7 @@ class ScriptAssist:
 
         return self.check_status_code(request)
 
-    def send_get_request(self, uri, authentication, head=None, payload=None, params=None):
+    def __send_get_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP get request
 
