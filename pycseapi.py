@@ -1,84 +1,236 @@
-import yaml, requests, re
+import re
+from datetime import datetime
 from pycscguard import CredentialManager
+from pycscguard import ScriptAssist
 
 class SecureEndpointApi:
+    """
+    The SecureEndpointApi object is used for interfacing with the 
+    Cisco Secure Endpoint API without the need to write API requests,
+    instead giving you the ability to call preset methods
+    """
 
     def __init__( self, region="nam", preferencesfile="preferences.yml" ) -> None:
-        
-        self.region = region
-        self.preferencesfile = preferencesfile
-        self.credentials = CredentialManager( preferencesfile=self.preferencesfile)
-        self.preferences = self.credentials.load_yaml_file( file="config/preferences.yml" )
-        self.apiconfig = self.credentials.load_yaml_file( file="config/config.yml" )
-        self.basic_auth = self.credentials["amp"] 
-        self.v3_token = self.credentials.get_csev3_token()
-        self.v3_url = self.apiconfig["amp"][f"{self.region}"]
-        self.v1_url = re.sub( '/v3', '/v1', self.v3_url ),
-        self.v0_url = re.sub( '/v3', '/v0', self.v3_url ),
-    
-    def load_preferences(self):
-        try:
-            with open( self.preferencesfile, 'r' ) as file:
-                preferences = yaml.safe_load( file )
-        except:
-            raise Exception( f"Could not read or locate the preferences file at {self.preferencesfile}" )
-        return preferences
-    
-    def get_organizations( self, limit=10, start=0 ):
-        request_headers = {
-            "Authorization" : f"Bearer {self.v3_token}"
+        """
+        __init__ Will load all preferences, call the CredentialManager,
+        and interface with the ScriptAssist class to get everything
+        set.
+        """
+        self.helper = ScriptAssist()
+        self.apiconfig = self.helper.load_yaml_file( file="config/config.yml" )
+        self.preferences = self.helper.load_yaml_file( file=preferencesfile )
+
+        self.config = {
+            "region" : region,
+            "preferencesfile" : preferencesfile,
+            "v3_url" : self.apiconfig["amp"][f"{region}"],
+            "v1_url" : re.sub( '/v3', '/v1', self.apiconfig["amp"][f"{region}"]),
+            "v0_url" : re.sub( '/v3', '/v0', self.apiconfig["amp"][f"{region}"] )
         }
 
-        # Define grant type
-        request_payload = {
-            "grant_type" : "client_credentials"
+        self.credentials = CredentialManager(
+                region = self.config["region"],
+                preferencesfile= self.config["preferencesfile"]
+            )
+
+        self.basic_auth = {
+            "auth_type" : "httpbasic",
+            "username" : self.credentials.credentials["amp"]["client_id"],
+            "password" : self.credentials.credentials["amp"]["secret_key"]
         }
 
-        # Sent the POST Request to the Secure Endpoint API
-        request = requests.get(
-            f"{self.v3_url}/organizations?size={limit}&start={start}",
-            headers=request_headers
-        )
-        return request.json()
-    
+        self.tokens = {
+           "securex" : { 
+               "token" : "",
+               "timestamp" : None,
+               "validfor"  : ""
 
-    # Get all organizations so we can tie name to Unique ID and select the 
+            },
+            "amp" : {
+                "token" : "",
+                "timestamp" : None,
+                "validfor"  : ""
+            }
+        }
+
+    # ### v3 API Functions ###
+    # ### /v3/
+    # # Returns a list of organizations and UUIDs
+    # def get_organizations( self, limit=10, start=0 ):
+    #     request_headers = {
+    #         "Authorization" : f"Bearer {self.v3_token}"
+    #     }
+
+    #     # Define grant type
+    #     request_payload = {
+    #         "grant_type" : "client_credentials"
+    #     }
+
+    #     # Sent the POST Request to the Secure Endpoint API
+    #     request = requests.get(
+    #         f"{self.v3_url}/organizations?size={limit}&start={start}",
+    #         headers=request_headers
+    #     )
+    #     return request.json()
+    # Get all organizations so we can tie name to Unique ID and select the
     # Unique ID in a user friendly manner
     # def select_organization( self, organizationname ):
-
     #     organizations = self.get_organizations( limit = 10, start=0  )
     #     while organizations.meta["total"] > organizations.meta["size"]:
-    #         getremainingorgs = self.get_organizations( limit = 10, start = organizations.meta["start"] );
+    #         getremainingorgs = self.get_organizations(limit=10,start=organizations.meta["start"])
     #         organizations.data += getremainingorgs.data;
     #         organizations.meta = {
     #             "start" : getremainingorgs.meta["start"],
     #             "size" : 10
     #         };
     #     return organizations
-
-
-    # Haven't tested yet
-    def move_computer( self, connector_guid, group_guid ):
+    # ## END V3 API FUNCTIONS
+    # ## v1 API Computer Functions
+    # ### v1/computers/{uuid}/isolation
+    def get_computers(self, start=0, limit=50, advancedquery=None):
+        """
+        Gets information on a list of computers
         
-        request_headers = {
-            "Authorization" : f"Bearer {self.v3_token}"
+        Args: 
+            start (int) : Index of the computer to start for (pagination)
+            limit (int) : Max number of resources to retreive (pagination)
+            advancedquery (str) : Custom query; see API documentation for details
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+
+        query = f"?offset={start}&limit={limit}"
+        if advancedquery is not None:
+            query = f"?offset={start}&limit={limit}&{advancedquery}"
+
+        headers = {
+            "Accept" : "application/json"
         }
 
-        request_payload = {
-            "op" : "replace",
-            "path" : "group_guid",
-            "value" : f"{group_guid}"
-        }
-
-        # Sent the POST Request to the Secure Endpoint API
-        request = requests.patch(
-            url = f"{self.v1_url}/computers/{connector_guid}",
-            auth = ( self.basic_auth["client_id"], self.basic_auth["secret_key"] ),
-            data = request_payload
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri= f"{self.config['v1_url']}/computers/{query}",
+            head=headers
         )
-        return request.json()
+
+        if isinstance(response, dict):
+            response = response.get("data")
+
+        return response
+
+    # Get a singular computer by UUID
+    def get_computer_by_uuid(self, computer_uuid):
+        """
+        Gets information on a computer given the connector guid
+        
+        Args: 
+            computer_uuid (str): The connector guid of the computer we want information on
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        headers = {
+                "Accept" : "application/json"
+            }
+
+        response = self.helper.send_request(
+                method="GET",
+                authentication=self.basic_auth,
+                uri=f"{self.config['v1_url']}/computers/{format(computer_uuid)}",
+                head=headers
+            )
+
+        if isinstance(response, dict):
+            response = response.get("data")
+
+        return response
+
+    # Moves a computer to the given group based on UUID
+    def move_computer(self, computer_uuid, group_uuid):
+        """
+        Moves a computer from its current group to the given group
+        based on UUID
+        
+        Args: 
+            computer_uuid (str): The connector guid of the computer to move
+            group_uuid (str): The guid of the group we want to move the computer to
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        data = {
+            "group_guid" : group_uuid
+        }
+
+        response = self.helper.send_request(
+            method="PATCH",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{computer_uuid}",
+            payload=data
+        )
+
+        if isinstance(response, dict):
+            response = response.get("data")
+
+        return response
+
+    def delete_computer(self, computer_uuid):
+        """
+        Deletes a computer from the AMP console given the UUID
+        
+        Args: 
+            computer_uuid (str): The connector guid of the computer to remove
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        response = self.helper.send_request(
+            method="DELETE",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{computer_uuid}"
+        )
+
+        if isinstance(response, dict):
+            response = response.get("data")
+
+        return response
+
+    def get_token(self, token):
+        """
+        Checks whether a token is valid and regenerates it
+        if the time delta from now to generation is greater
+        than the validity period
+        
+        Args: 
+            token (str): Denots the API token we want to generate
+
+        Returns
+            (bool) : Indicating whether we generated a token or not
+        """
+        if self.tokens[f"{token}"]["timestamp"] is not None:
+            token_timestamp = self.tokens[f"{token}"]["timestamp"]
+            current_timestamp = datetime.now()
+            delta = (current_timestamp - token_timestamp).seconds
+            if delta >= self.tokens[f"{token}"]["validfor"]:
+                tokenvalid = False
+            else:
+                tokenvalid = True
+        else:
+            tokenvalid = False
+
+        if tokenvalid is False:
+            match token:
+                case "amp":
+                    self.tokens["amp"]["timestamp"] = datetime.now()
+                    self.tokens["amp"]["validfor"] = 600
+                    self.tokens["amp"]["token"] = self.credentials.get_csev3_token()
+                    return True
+                case "securex":
+                    self.tokens["securex"]["timestamp"] = datetime.now()
+                    self.tokens["securex"]["validfor"] = 600
+                    self.tokens["securex"]["token"] = self.credentials.get_securex_token()
+                    return True
+        return False
     
-
-
-
-
