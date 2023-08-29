@@ -97,7 +97,7 @@ class SecureEndpointApi:
             start=None,
             end=None,
             event=None,
-            type=None,
+            audit_log_type=None,
             limit=50,
             offset=0
         ):
@@ -109,7 +109,7 @@ class SecureEndpointApi:
             start (str): An ISO timestamp for the earliest dated event to include
             end (str): An ISO timestamp for the last dated event to include
             event (str): Events to include, i.e. udpate, create
-            type (str): The audit log type to query
+            audit_log_type (str): The audit log type to query
             limit (int): Max number of records to retreive
             offset (int): Index of the first record to receive
 
@@ -120,14 +120,14 @@ class SecureEndpointApi:
             "limit" : limit,
             "offset" : offset
         }
-        
+
         if start and end is not None:
             query.update("start_time",start)
             query.update("end_time", end)
         if event is not None:
             query.update("event", event)
-        if type is not None:
-            query.update("audit_log_type", type)
+        if audit_log_type is not None:
+            query.update("audit_log_type", audit_log_type)
         if user is not None:
             query.update("audit_log_user", user)
 
