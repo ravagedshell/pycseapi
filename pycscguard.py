@@ -356,15 +356,24 @@ class ScriptAssist:
                         )
 
         if request.status_code == (401 or 403):
-                return f"Received HTTP Status Code {request.status_code}, check credentials/authorization."
-        
+            response = f"Received HTTP Status Code {request.status_code}, check credentials."
+
         if request.status_code == 400:
-                return f"Received HTTP Status Code 400; bad request."
+            response = f"Received HTTP Status Code {request.status_code}; bad request."
+
+        if request.status_code == 404:
+            response = f"Ooops, received HTTP Status Code {request.status_code}; Not found"
+
+        if request.status_code >= 500 and request.status_code < 600:
+            response = f"Error: received HTTP Status code {request.status_code}; a server error occured"
+
+        if request.status_code >= 300 and request.status_code < 400:
+            response = f"Redirect: received HTTP Status Code {request.status_code}; resource moved"
 
         if request.status_code >= 200 and request.status_code < 300:
-            return request.json()
+            response = request.json()
 
-        return False
+        return response
 
     # Load and Return Yaml File as Dictionary
     def load_yaml_file(self, file):

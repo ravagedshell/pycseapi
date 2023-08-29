@@ -72,11 +72,9 @@ class SecureEndpointApi:
     #         headers=request_headers
     #     )
     #     return request.json()
-
-    # Get all organizations so we can tie name to Unique ID and select the 
+    # Get all organizations so we can tie name to Unique ID and select the
     # Unique ID in a user friendly manner
     # def select_organization( self, organizationname ):
-
     #     organizations = self.get_organizations( limit = 10, start=0  )
     #     while organizations.meta["total"] > organizations.meta["size"]:
     #         getremainingorgs = self.get_organizations(limit=10,start=organizations.meta["start"])
@@ -86,34 +84,53 @@ class SecureEndpointApi:
     #             "size" : 10
     #         };
     #     return organizations
-
+    # ## END V3 API FUNCTIONS
     # ## v1 API Computer Functions
     # ### v1/computers/{uuid}/isolation
-
-    # Get a list of computers Computers
-    # Need to add pagination loop in here
     def get_computers(self, start=0, limit=50, advancedquery=None):
+        """
+        Gets information on a list of computers
+        
+        Args: 
+            start (int) : Index of the computer to start for (pagination)
+            limit (int) : Max number of resources to retreive (pagination)
+            advancedquery (str) : Custom query; see API documentation for details
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
 
         query = f"?offset={start}&limit={limit}"
         if advancedquery is not None:
             query = f"?offset={start}&limit={limit}&{advancedquery}"
-        
+
         headers = {
             "Accept" : "application/json"
         }
-    
+
         response = self.helper.send_request(
             method="GET",
             authentication=self.basic_auth,
             uri= f"{self.config['v1_url']}/computers/{query}",
             head=headers
-        )   
+        )
 
         if isinstance(response, dict):
-            return response.get("data")
-    
+            response = response.get("data")
+
+        return response
+
     # Get a singular computer by UUID
     def get_computer_by_uuid(self, computer_uuid):
+        """
+        Gets information on a computer given the connector guid
+        
+        Args: 
+            computer_uuid (str): The connector guid of the computer we want information on
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
         headers = {
                 "Accept" : "application/json"
             }
@@ -124,15 +141,25 @@ class SecureEndpointApi:
                 uri=f"{self.config['v1_url']}/computers/{format(computer_uuid)}",
                 head=headers
             )
-        
+
         if isinstance(response, dict):
-            return response.get("data")
-        
+            response = response.get("data")
+
         return response
-        
+
     # Moves a computer to the given group based on UUID
     def move_computer(self, computer_uuid, group_uuid):
+        """
+        Moves a computer from its current group to the given group
+        based on UUID
+        
+        Args: 
+            computer_uuid (str): The connector guid of the computer to move
+            group_uuid (str): The guid of the group we want to move the computer to
 
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
         data = {
             "group_guid" : group_uuid
         }
@@ -143,15 +170,22 @@ class SecureEndpointApi:
             uri=f"{self.config['v1_url']}/computers/{computer_uuid}",
             payload=data
         )
-        
+
         if isinstance(response, dict):
-            return response.get("data")
+            response = response.get("data")
 
         return response
 
-    # Deletes a computer given the UUID
     def delete_computer(self, computer_uuid):
+        """
+        Deletes a computer from the AMP console given the UUID
+        
+        Args: 
+            computer_uuid (str): The connector guid of the computer to remove
 
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
         response = self.helper.send_request(
             method="DELETE",
             authentication=self.basic_auth,
@@ -159,8 +193,8 @@ class SecureEndpointApi:
         )
 
         if isinstance(response, dict):
-            return response.get("data")
-        
+            response = response.get("data")
+
         return response
 
     def get_token(self, token):
@@ -199,26 +233,4 @@ class SecureEndpointApi:
                     self.tokens["securex"]["token"] = self.credentials.get_securex_token()
                     return True
         return False
-
-
-
-
-
-    # def send_v3_post_request(self, uri, payload)
-    # def send_get_request( self, uri, head, payload, authentication):
-    #     return False
-
-    # def send_post_request(self, uri, head, payload, authentication):
-    #     request = requests.post(
-    #         url=uri,
-    #         headers=head,
-    #         data=payload,
-    #         auth=authentication,
-    #         timeout=1.5
-    #     )
-    #     if request.status_code == '200':
-    #         return request.json()
-    #     return False
-
-
     
