@@ -159,10 +159,13 @@ class SecureEndpointApi:
         Returns
             (multi) : json/string/bool based on errors received or whether it completed
         """
+        query = {
+            "limit" : limit,
+            "offset" : start
+        }
 
-        query = f"?offset={start}&limit={limit}"
         if advancedquery is not None:
-            query = f"?offset={start}&limit={limit}&{advancedquery}"
+            query.update("q",advancedquery)
 
         headers = {
             "Accept" : "application/json"
@@ -276,27 +279,17 @@ class SecureEndpointApi:
         Returns
             (multi) : json/string/bool based on errors received or whether it completed
         """
-        query = { "limit" : limit }
-        if (advancedquery is not None) and (start and end is not None):
-            query = {
-                "start_time" : start,
-                "end_time" : end,
-                "q" : advancedquery,
+        query = { 
                 "limit" : limit
             }
 
-        elif (advancedquery is not None) and (start and end is None):
-            query = {
-                "q" : advancedquery,
-                "limit" : limit
-            }
+        if start and end is not None:
+            query.update("start_time", start)
+            query.update("end_time", end)
 
-        elif (advancedquery is None) and (start and end is not None):
-            query = {
-                "start_time" : start,
-                "end_time" : end,
-                "limit": limit
-            }
+        if advancedquery is not None:
+            query.update("q", advancedquery)
+
 
         response = self.helper.send_request(
             method="GET",
@@ -364,12 +357,8 @@ class SecureEndpointApi:
         }
 
         if start and end is not None:
-            query = {
-                "q" : username,
-                "limit" : limit,
-                "start_time" : start,
-                "end_time" : end
-            }
+                query.update("start_time", start)
+                query.update("end_time", end)
 
         response = self.helper.send_request(
             method="GET",
@@ -408,12 +397,8 @@ class SecureEndpointApi:
         }
 
         if start and end is not None:
-            query = {
-                "start_time" : start,
-                "end_time" : end,
-                "limit" : limit,
-                "offset" : offset
-            }
+                query.update("start_time", start)
+                query.update("end_time", end)
 
         response = self.helper.send_request(
             method="GET",
