@@ -122,14 +122,23 @@ class SecureEndpointApi:
         }
 
         if start and end is not None:
-            query.update({ "start_time" : start })
-            query.update({ "end_time" : end })
+            query.update({
+                    "start_time" : start,
+                    "end_time" : end
+                })
+
         if event is not None:
-            query.update({ "event" : event })
+            query.update({
+                    "event" : event
+                })
         if audit_log_type is not None:
-            query.update({ "audit_log_type" : audit_log_type })
+            query.update({
+                    "audit_log_type" : audit_log_type
+                })
         if user is not None:
-            query.update({ "audit_log_user" : user })
+            query.update({
+                    "audit_log_user" : user
+                })
 
         response = self.helper.send_request(
             method="GET",
@@ -165,7 +174,9 @@ class SecureEndpointApi:
         }
 
         if advancedquery is not None:
-            query.update({ "q" : advancedquery })
+            query.update({
+                    "q" : advancedquery
+                })
 
         headers = {
             "Accept" : "application/json"
@@ -284,11 +295,15 @@ class SecureEndpointApi:
             }
 
         if start and end is not None:
-            query.update({ "start_time" : start })
-            query.update({ "end_time" : end })
+            query.update({
+                    "start_time" : start,
+                    "end_time" : end
+                })
 
         if advancedquery is not None:
-            query.update({ "q" : advancedquery })
+            query.update({
+                    "q" : advancedquery
+                })
 
 
         response = self.helper.send_request(
@@ -357,8 +372,10 @@ class SecureEndpointApi:
         }
 
         if start and end is not None:
-            query.update({ "start_time" : start })
-            query.update({ "end_time" : end })
+            query.update({
+                    "start_time" : start,
+                    "end_time" : end
+                })
 
         response = self.helper.send_request(
             method="GET",
@@ -397,8 +414,10 @@ class SecureEndpointApi:
         }
 
         if start and end is not None:
-            query.update({ "start_time" : start })
-            query.update({ "end_time" : end })
+            query.update({
+                    "start_time" : start,
+                    "end_time" : end
+                })
 
         response = self.helper.send_request(
             method="GET",
@@ -474,7 +493,9 @@ class SecureEndpointApi:
             }
 
         status = self.check_response(response)
-        status.update({ "connector_guid" : connector_uuid })
+        status.update({
+                "connector_guid" : connector_uuid
+            })
 
         return status
 
@@ -591,4 +612,3 @@ class SecureEndpointApi:
                     self.tokens["securex"]["token"] = self.credentials.get_securex_token()
                     return True
         return False
-    
