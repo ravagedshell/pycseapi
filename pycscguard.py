@@ -235,10 +235,9 @@ class ScriptAssist:
         with subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE) as process:
             return process.stdout.read()
 
-    # dont worry, going to refactor this and break this out easier
-    def send_request(self, method, uri, authentication, head=None, payload=None):
+    def send_request(self, method, uri, authentication, head=None, payload=None, params=None):
         """ 
-        Sends an HTTP POST request to the correct function and returns
+        Sends an HTTP request to the correct function and returns
         a response/error or raw data
 
         Args:
@@ -246,23 +245,26 @@ class ScriptAssist:
             head (dict): A dictionary containing the headers we want to pass
             payload (dict): A dictionary containing the payload we want to send
             authentication (list): A list of username/password to authenticate with
+            params (dict): Query to paramatize and send to a GET request
 
         Returns:
             response: Dictionary containing response raw data
         """
 
         method_switcher = {
-            "POST" : self.send_post_request,
-            "PATCH" : self.send_patch_request,
-            "DELETE" : self.send_delete_request,
-            "GET" : self.send_get_request
+            "POST" : self.__send_post_request,
+            "PATCH" : self.__send_patch_request,
+            "DELETE" : self.__send_delete_request,
+            "GET" : self.__send_get_request,
+            "PUT" : self.__send_put_request
         }
 
         return method_switcher.get(method)(
             uri=uri,
             authentication=authentication,
             head=head,
-            payload=payload
+            payload=payload,
+            params=params
         )
 
     def check_status_code(self, response):
@@ -278,26 +280,23 @@ class ScriptAssist:
         """
         if response.status_code == (401 or 403):
             response = f"Received HTTP Status Code {response.status_code}, check credentials."
-
-        if response.status_code == 400:
+        elif response.status_code == 400:
             response = f"Received HTTP Status Code {response.status_code}; bad response."
-
-        if response.status_code == 404:
+        elif response.status_code == 404:
             response = f"Ooops, received HTTP Status Code {response.status_code}; Not found"
-
-        if response.status_code >= 500 and response.status_code < 600:
+        elif response.status_code >= 500 and response.status_code < 600:
             response = f"Error: received HTTP Status code {response.status_code}; server error"
-
-        if response.status_code >= 300 and response.status_code < 400:
+        elif response.status_code >= 300 and response.status_code < 400:
             response = f"Redirect: received HTTP Status Code {response.status_code}; resource moved"
-
-        if response.status_code >= 200 and response.status_code < 300:
+        elif response.status_code >= 200 and response.status_code < 300:
             response = response.json()
+        else:
+            response = f"Received HTTP status code {response.status_code}; unhandled error"
 
         return response
 
 
-    def send_post_request(self, uri, authentication, head=None, payload=None):
+    def __send_post_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP Post request
 
@@ -329,7 +328,7 @@ class ScriptAssist:
 
         return self.check_status_code(request)
 
-    def send_patch_request(self, uri, authentication, head=None, payload=None):
+    def __send_patch_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP patch request
 
@@ -360,7 +359,7 @@ class ScriptAssist:
 
         return self.check_status_code(request)
 
-    def send_delete_request(self, uri, authentication, head=None, payload=None):
+    def __send_delete_request(self, uri, authentication, head=None, payload=None, params=None):
         """ 
         Sends an HTTP Delete request
 
@@ -385,12 +384,20 @@ class ScriptAssist:
         request = requests.delete(
             url=uri,
             auth=authentication,
-            timeout=5
+            timeout=5,
+            data=payload
         )
 
         return self.check_status_code(request)
 
-    def send_get_request(self, uri, authentication, head=None, payload=None):
+    def __send_get_request(
+            self,
+            uri,
+            authentication,
+            head=None,
+            payload=None,
+            params=None
+            ):
         """ 
         Sends an HTTP get request
 
@@ -416,6 +423,35 @@ class ScriptAssist:
             url=uri,
             headers=head,
             auth=authentication,
+            params=params,
+            timeout=5
+        )
+
+        return self.check_status_code(request)
+
+    def __send_put_request(
+            self,
+            uri,
+            authentication,
+            head=None,
+            payload=None,
+            params=None
+        ):
+
+        if authentication["auth_type"] == "bearer":
+            authentication = None
+
+        else:
+            authentication = (
+                authentication["username"],
+                authentication["password"]
+            )
+
+        request = requests.put(
+            url=uri,
+            headers=head,
+            auth=authentication,
+            data=payload,
             timeout=5
         )
 

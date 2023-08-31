@@ -9,8 +9,11 @@ class SecureEndpointApi:
     Cisco Secure Endpoint API without the need to write API requests,
     instead giving you the ability to call preset methods
     """
-
-    def __init__( self, region="nam", preferencesfile="preferences.yml" ) -> None:
+    def __init__(
+            self,
+            region="nam",
+            preferencesfile="preferences.yml"
+            ) -> None:
         """
         __init__ Will load all preferences, call the CredentialManager,
         and interface with the ScriptAssist class to get everything
@@ -85,9 +88,75 @@ class SecureEndpointApi:
     #         };
     #     return organizations
     # ## END V3 API FUNCTIONS
+
+    # ## v1 Audit Log Functions
+    # ### /v1/audit_log
+    def get_audit_log(
+            self,
+            user=None,
+            start=None,
+            end=None,
+            event=None,
+            audit_log_type=None,
+            limit=50,
+            offset=0
+        ):
+        """
+        Returns a list of events from the audit log
+
+        Args: 
+            username (str): User to filter events for
+            start (str): An ISO timestamp for the earliest dated event to include
+            end (str): An ISO timestamp for the last dated event to include
+            event (str): Events to include, i.e. udpate, create
+            audit_log_type (str): The audit log type to query
+            limit (int): Max number of records to retreive
+            offset (int): Index of the first record to receive
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "limit" : limit,
+            "offset" : offset
+        }
+
+        if start and end is not None:
+            query.update({
+                    "start_time" : start,
+                    "end_time" : end
+                })
+
+        if event is not None:
+            query.update({
+                    "event" : event
+                })
+        if audit_log_type is not None:
+            query.update({
+                    "audit_log_type" : audit_log_type
+                })
+        if user is not None:
+            query.update({
+                    "audit_log_user" : user
+                })
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/audit_logs",
+            params=query
+        )
+
+        return self.check_response(response)
+
     # ## v1 API Computer Functions
-    # ### v1/computers/{uuid}/isolation
-    def get_computers(self, start=0, limit=50, advancedquery=None):
+    # ### v1/computers
+    def get_computers(
+            self,
+            start=0,
+            limit=50,
+            advancedquery=None
+            ):
         """
         Gets information on a list of computers
         
@@ -99,10 +168,15 @@ class SecureEndpointApi:
         Returns
             (multi) : json/string/bool based on errors received or whether it completed
         """
+        query = {
+            "limit" : limit,
+            "offset" : start
+        }
 
-        query = f"?offset={start}&limit={limit}"
         if advancedquery is not None:
-            query = f"?offset={start}&limit={limit}&{advancedquery}"
+            query.update({
+                    "q" : advancedquery
+                })
 
         headers = {
             "Accept" : "application/json"
@@ -115,13 +189,12 @@ class SecureEndpointApi:
             head=headers
         )
 
-        if isinstance(response, dict):
-            response = response.get("data")
+        return self.check_response(response)
 
-        return response
-
-    # Get a singular computer by UUID
-    def get_computer_by_uuid(self, computer_uuid):
+    def get_computer_by_uuid(
+            self,
+            computer_uuid
+            ):
         """
         Gets information on a computer given the connector guid
         
@@ -142,13 +215,14 @@ class SecureEndpointApi:
                 head=headers
             )
 
-        if isinstance(response, dict):
-            response = response.get("data")
-
-        return response
+        return self.check_response(response)
 
     # Moves a computer to the given group based on UUID
-    def move_computer(self, computer_uuid, group_uuid):
+    def move_computer(
+                self,
+                computer_uuid,
+                group_uuid
+            ):
         """
         Moves a computer from its current group to the given group
         based on UUID
@@ -171,12 +245,12 @@ class SecureEndpointApi:
             payload=data
         )
 
-        if isinstance(response, dict):
-            response = response.get("data")
+        return self.check_response(response)
 
-        return response
-
-    def delete_computer(self, computer_uuid):
+    def delete_computer(
+            self,
+            computer_uuid
+            ):
         """
         Deletes a computer from the AMP console given the UUID
         
@@ -192,12 +266,440 @@ class SecureEndpointApi:
             uri=f"{self.config['v1_url']}/computers/{computer_uuid}"
         )
 
-        if isinstance(response, dict):
-            response = response.get("data")
+        return self.check_response(response)
 
-        return response
+    def get_device_trajectory(
+                self,
+                computer_uuid,
+                start=None,
+                end=None,
+                advancedquery=None,
+                limit=50
+            ):
+        """
+        Gets events from device trajectory given a computer UUID
+        
+        Args: 
+            computer_uuid (str): The connector guid of the computer to query
+            start (str): An ISO timestamp for the earliest dated event to include
+            end (str): An ISO timestamp for the last dated event to include
+            advancedquery (str): Advanced filters; see API documentation
+            limit (int): A limit to how many events to return, default 50
 
-    def get_token(self, token):
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+                "limit" : limit
+            }
+
+        if start and end is not None:
+            query.update({
+                    "start_time" : start,
+                    "end_time" : end
+                })
+
+        if advancedquery is not None:
+            query.update({
+                    "q" : advancedquery
+                })
+
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{computer_uuid}/trajectory",
+            params=query
+        )
+
+        return self.check_response(response)
+
+    def get_computer_activity(
+            self,
+            advancedquery=None,
+            offset=0,
+            limit=50
+        ):
+        """
+        Retreives information about a computers activity
+        
+        Args: 
+            advancedquery (str): A search query, such as application name, to look for
+            offset (int): Index of record to begin search at
+            limit (int): Max number of records to retreive
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "offset" : offset,
+            "limit" : limit
+        }
+
+        if advancedquery is not None:
+            query.update({
+                "q" : advancedquery
+            })
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/activity",
+            params=query
+        )
+
+        return self.check_response(response)
+
+    def get_user_activity(
+            self,
+            username,
+            limit=50
+        ):
+        """
+        Gets a list of computers that a user has had activity on
+        
+        Args: 
+            username (dict) : username to search for activity on
+            limit (int): Max number of records to retreive
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "q" : username,
+            "limit" : limit
+        }
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/user_activity",
+            params=query
+        )
+
+        return self.check_response(response)
+
+    def get_user_trajectory(
+            self,
+            username,
+            connector_uuid,
+            limit=50,
+            start=None,
+            end=None
+        ):
+        """
+        Gets a specific computers device trajectory and filters for
+        events with a particular username in it.
+
+        Args: 
+            username (dict) : username to search for activity on
+            connect_uuid  : GUID of the connector to search
+            limit (int): Max number of records to retreive
+            start (str): An ISO timestamp for the earliest dated event to include
+            end (str): An ISO timestamp for the last dated event to include
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "q" : username,
+            "limit" : limit
+        }
+
+        if start and end is not None:
+            query.update({
+                    "start_time" : start,
+                    "end_time" : end
+                })
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{connector_uuid}/user_trajectory",
+            params=query
+        )
+
+        return self.check_response(response)
+
+    def get_vulnerabilities(
+            self,
+            connector_uuid,
+            start=None,
+            end=None,
+            limit=50,
+            offset=0
+        ):
+        """
+        Gets a list of software vulnerabilites present on a given
+        computer, given the connector GUID
+
+        Args: 
+            connector_uuid  : GUID of the connector to search
+            start (str): An ISO timestamp for the earliest dated event to include
+            end (str): An ISO timestamp for the last dated event to include
+            limit (int): Max number of records to retreive
+            offset (int): Index of the first record to receive
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "limit" : limit,
+            "offset" : offset
+        }
+
+        if start and end is not None:
+            query.update({
+                    "start_time" : start,
+                    "end_time" : end
+                })
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{connector_uuid}/vulnerabilities",
+            params=query
+        )
+
+        return self.check_response(response)
+
+    def get_os_vulnerabilities(
+            self,
+            connector_uuid,
+            limit=50,
+            offset=0
+        ):
+        """
+        Gets a list of oeprating system vulnerabilites present on a given
+        computer, given the connector GUID
+
+        Args: 
+            connector_uuid : GUID of the connector to search
+            start (str): An ISO timestamp for the earliest dated event to include
+            end (str): An ISO timestamp for the last dated event to include
+            limit (int): Max number of records to retreive
+            offset (int): Index of the first record to receive
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "limit" : limit,
+            "offset" : offset
+        }
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{connector_uuid}/os_vulnerabilities",
+            params=query
+        )
+
+        return self.check_response(response)
+
+    def get_isolation_status(
+            self,
+            connector_uuid
+        ):
+        """
+        Gets the current isolation status of a connector given the
+        GUID
+
+        Args: 
+            connector_uuid (str): GUID of the connector to get isolation status
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{connector_uuid}/isolation",
+        )
+
+        if response == "Received HTTP status code 405; unhandled error":
+            return {
+                "available" : "False",
+                "status" : "Not supported by policy",
+                "unlock_code" : "n/a",
+                "comment" : "Endpoint isolation for this device is not supported",
+                "connector_guid" : connector_uuid
+            }
+
+        status = self.check_response(response)
+        status.update({
+                "connector_guid" : connector_uuid
+            })
+
+        return status
+
+    def start_isolation(
+            self,
+            connector_uuid,
+            comment="Isolated by API Request"
+        ):
+        """
+        Begins the isolation of a computer given the GUID
+
+        Args: 
+            connector_uuid (str): GUID of the connector to begin isolation
+            comment (str): A comment for auditing why a computer was Isolated
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        payload = {
+            "comment" : comment
+        }
+
+        response = self.helper.send_request(
+            method="PUT",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{connector_uuid}/isolation",
+            payload=payload
+        )
+
+        return self.check_response(response)
+
+    def stop_isolation(
+            self,
+            connector_uuid,
+            comment="Removed from Isolation by API Request"
+        ):
+        """
+        Stops the isolation of a computer give the GUID
+
+        Args: 
+            connector_uuid (str): GUID of the connector to stop isolation
+            comment (str): A comment for auditing why a computer was removed from isolation
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        payload = {
+            "comment" : comment
+        }
+
+        response = self.helper.send_request(
+            method="DELETE",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{connector_uuid}/isolation",
+            payload=payload
+        )
+
+        return self.check_response(response)
+
+    # ### v1/events
+    def get_events(
+            self,
+            event_type=None,
+            start=None,
+            detection_sha256=None,
+            application_sha256=None,
+            connector_uuid=None,
+            group_uuid=None,
+            limit=50,
+            offset=0
+        ):
+        """
+        Returns a list of events from the audit log
+
+        Args: 
+            event_type (str): Types of events to return
+            start (str): An ISO timestamp for the earliest dated event to include
+            detection_sha256 (str): The SHA256 of the application you want to see events for
+            application_sha256 (str): The SHA256 of the detection you want to see events for
+            connector_uuid (str): The connector to return events for
+            group_uuid (str): The computer group to return events for
+            limit (int): Max number of records to retreive
+            offset (int): Index of the first record to receive
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "limit" : limit,
+            "offset" : offset
+        }
+
+        if start is not None:
+            query.update({
+                "start_date" : start,
+            })
+        if event_type is not None:
+            query.update({
+                "event_type" : event_type
+            })
+        if detection_sha256 is not None:
+            query.update({
+                "detection_sha256" : detection_sha256
+            })
+        if application_sha256 is not None:
+            query.update({
+                "application_sha256" : application_sha256
+            })
+        if connector_uuid is not None:
+            query.update({
+               "connector_guid" : connector_uuid
+            })
+        if group_uuid is not None:
+            query.update({
+                "group_guid" : group_uuid
+            })
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/events",
+            params=query
+        )
+
+        return self.check_response(response)
+
+    # ### v1/event_types
+    def get_event_types(
+            self
+        ):
+        """
+        Returns a list of events types you can search for
+
+        Args: 
+            None
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/event_types"
+        )
+
+        return self.check_response(response)
+
+    def check_response(
+            self,
+            data
+            ):
+        """
+        Checks if the returned data is in Dictionary format and ready
+        to be exported to json; returns False if not
+        
+        Args: 
+            data (dict) : The response data from our HTTP request
+
+        Returns
+            (bool | dict): False if response is not Dict, data if Dict
+        """
+        if isinstance(data, dict) and "data" in data:
+            return data.get("data")
+        return False
+
+    def get_token(
+            self,
+            token
+            ):
         """
         Checks whether a token is valid and regenerates it
         if the time delta from now to generation is greater
@@ -233,4 +735,3 @@ class SecureEndpointApi:
                     self.tokens["securex"]["token"] = self.credentials.get_securex_token()
                     return True
         return False
-    

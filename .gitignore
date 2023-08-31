@@ -14,7 +14,12 @@ pip-delete-this-directory.txt
 .cache
 .test
 test*.*
+.unittest
+unittest/*
+unittest
+tests/*
+tests
 
 # Custom Preferences Files
-config.*
-preferences.*
+config.my.*
+preferences.my.*
