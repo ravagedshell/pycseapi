@@ -191,7 +191,6 @@ class SecureEndpointApi:
 
         return self.check_response(response)
 
-    # Get a singular computer by UUID
     def get_computer_by_uuid(
             self,
             computer_uuid
@@ -310,6 +309,42 @@ class SecureEndpointApi:
             method="GET",
             authentication=self.basic_auth,
             uri=f"{self.config['v1_url']}/computers/{computer_uuid}/trajectory",
+            params=query
+        )
+
+        return self.check_response(response)
+
+    def get_computer_activity(
+            self,
+            advancedquery=None,
+            offset=0,
+            limit=50
+        ):
+        """
+        Retreives information about a computers activity
+        
+        Args: 
+            advancedquery (str): A search query, such as application name, to look for
+            offset (int): Index of record to begin search at
+            limit (int): Max number of records to retreive
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "offset" : offset,
+            "limit" : limit
+        }
+
+        if advancedquery is not None:
+            query.update({
+                "q" : advancedquery
+            })
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/activity",
             params=query
         )
 
@@ -551,6 +586,94 @@ class SecureEndpointApi:
             authentication=self.basic_auth,
             uri=f"{self.config['v1_url']}/computers/{connector_uuid}/isolation",
             payload=payload
+        )
+
+        return self.check_response(response)
+
+    # ### v1/events
+    def get_events(
+            self,
+            event_type=None,
+            start=None,
+            detection_sha256=None,
+            application_sha256=None,
+            connector_uuid=None,
+            group_uuid=None,
+            limit=50,
+            offset=0
+        ):
+        """
+        Returns a list of events from the audit log
+
+        Args: 
+            event_type (str): Types of events to return
+            start (str): An ISO timestamp for the earliest dated event to include
+            detection_sha256 (str): The SHA256 of the application you want to see events for
+            application_sha256 (str): The SHA256 of the detection you want to see events for
+            connector_uuid (str): The connector to return events for
+            group_uuid (str): The computer group to return events for
+            limit (int): Max number of records to retreive
+            offset (int): Index of the first record to receive
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        query = {
+            "limit" : limit,
+            "offset" : offset
+        }
+
+        if start is not None:
+            query.update({
+                "start_date" : start,
+            })
+        if event_type is not None:
+            query.update({
+                "event_type" : event_type
+            })
+        if detection_sha256 is not None:
+            query.update({
+                "detection_sha256" : detection_sha256
+            })
+        if application_sha256 is not None:
+            query.update({
+                "application_sha256" : application_sha256
+            })
+        if connector_uuid is not None:
+            query.update({
+               "connector_guid" : connector_uuid
+            })
+        if group_uuid is not None:
+            query.update({
+                "group_guid" : group_uuid
+            })
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/events",
+            params=query
+        )
+
+        return self.check_response(response)
+
+    # ### v1/event_types
+    def get_event_types(
+            self
+        ):
+        """
+        Returns a list of events types you can search for
+
+        Args: 
+            None
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/event_types"
         )
 
         return self.check_response(response)
