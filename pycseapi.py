@@ -442,6 +442,29 @@ class SecureEndpointApi:
         )
 
         return self.check_response(response)
+    
+    def get_isolation_status(
+            self,
+            connector_uuid
+        ):
+        """
+        Gets the current isolation status of a connector given the
+        GUID
+
+        Args: 
+            connector_uuid  : GUID of the connector to search
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+
+        response = self.helper.send_request(
+            method="GET",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{connector_uuid}/isolation",
+        )
+
+        return self.check_response(response)
 
     def check_response(
             self,
