@@ -420,7 +420,7 @@ class SecureEndpointApi:
         computer, given the connector GUID
 
         Args: 
-            connector_uuid  : GUID of the connector to search
+            connector_uuid : GUID of the connector to search
             start (str): An ISO timestamp for the earliest dated event to include
             end (str): An ISO timestamp for the last dated event to include
             limit (int): Max number of records to retreive
@@ -442,7 +442,7 @@ class SecureEndpointApi:
         )
 
         return self.check_response(response)
-    
+
     def get_isolation_status(
             self,
             connector_uuid
@@ -452,7 +452,7 @@ class SecureEndpointApi:
         GUID
 
         Args: 
-            connector_uuid  : GUID of the connector to search
+            connector_uuid (str): GUID of the connector to get isolation status
 
         Returns
             (multi) : json/string/bool based on errors received or whether it completed
@@ -462,6 +462,63 @@ class SecureEndpointApi:
             method="GET",
             authentication=self.basic_auth,
             uri=f"{self.config['v1_url']}/computers/{connector_uuid}/isolation",
+        )
+
+        return self.check_response(response)
+
+    def start_isolation(
+            self,
+            connector_uuid,
+            comment="Isolated by API Request"
+        ):
+        """
+        Begins the isolation of a computer given the GUID
+
+        Args: 
+            connector_uuid (str): GUID of the connector to begin isolation
+            comment (str): A comment for auditing why a computer was Isolated
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        payload = {
+            "comment" : comment
+        }
+
+        response = self.helper.send_request(
+            method="PUT",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{connector_uuid}/isolation",
+            payload=payload
+        )
+
+        return self.check_response(response)
+    
+
+    def stop_isolation(
+            self,
+            connector_uuid,
+            comment="Removed from Isolation by API Request"
+        ):
+        """
+        Stops the isolation of a computer give the GUID
+
+        Args: 
+            connector_uuid (str): GUID of the connector to stop isolation
+            comment (str): A comment for auditing why a computer was removed from isolation
+
+        Returns
+            (multi) : json/string/bool based on errors received or whether it completed
+        """
+        payload = {
+            "comment" : comment
+        }
+
+        response = self.helper.send_request(
+            method="DELETE",
+            authentication=self.basic_auth,
+            uri=f"{self.config['v1_url']}/computers/{connector_uuid}/isolation",
+            payload=payload
         )
 
         return self.check_response(response)
