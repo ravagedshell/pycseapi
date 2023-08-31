@@ -122,14 +122,14 @@ class SecureEndpointApi:
         }
 
         if start and end is not None:
-            query.update("start_time",start)
-            query.update("end_time", end)
+            query.update({ "start_time" : start })
+            query.update({ "end_time" : end })
         if event is not None:
-            query.update("event", event)
+            query.update({ "event" : event })
         if audit_log_type is not None:
-            query.update("audit_log_type", audit_log_type)
+            query.update({ "audit_log_type" : audit_log_type })
         if user is not None:
-            query.update("audit_log_user", user)
+            query.update({ "audit_log_user" : user })
 
         response = self.helper.send_request(
             method="GET",
@@ -165,7 +165,7 @@ class SecureEndpointApi:
         }
 
         if advancedquery is not None:
-            query.update("q",advancedquery)
+            query.update({ "q" : advancedquery })
 
         headers = {
             "Accept" : "application/json"
@@ -279,16 +279,16 @@ class SecureEndpointApi:
         Returns
             (multi) : json/string/bool based on errors received or whether it completed
         """
-        query = { 
+        query = {
                 "limit" : limit
             }
 
         if start and end is not None:
-            query.update("start_time", start)
-            query.update("end_time", end)
+            query.update({ "start_time" : start })
+            query.update({ "end_time" : end })
 
         if advancedquery is not None:
-            query.update("q", advancedquery)
+            query.update({ "q" : advancedquery })
 
 
         response = self.helper.send_request(
@@ -357,8 +357,8 @@ class SecureEndpointApi:
         }
 
         if start and end is not None:
-                query.update("start_time", start)
-                query.update("end_time", end)
+            query.update({ "start_time" : start })
+            query.update({ "end_time" : end })
 
         response = self.helper.send_request(
             method="GET",
@@ -397,8 +397,8 @@ class SecureEndpointApi:
         }
 
         if start and end is not None:
-                query.update("start_time", start)
-                query.update("end_time", end)
+            query.update({ "start_time" : start })
+            query.update({ "end_time" : end })
 
         response = self.helper.send_request(
             method="GET",
@@ -464,7 +464,19 @@ class SecureEndpointApi:
             uri=f"{self.config['v1_url']}/computers/{connector_uuid}/isolation",
         )
 
-        return self.check_response(response)
+        if response == "Received HTTP status code 405; unhandled error":
+            return {
+                "available" : "False",
+                "status" : "Not supported by policy",
+                "unlock_code" : "n/a",
+                "comment" : "Endpoint isolation for this device is not supported",
+                "connector_guid" : connector_uuid
+            }
+
+        status = self.check_response(response)
+        status.update({ "connector_guid" : connector_uuid })
+
+        return status
 
     def start_isolation(
             self,
@@ -493,7 +505,6 @@ class SecureEndpointApi:
         )
 
         return self.check_response(response)
-    
 
     def stop_isolation(
             self,
