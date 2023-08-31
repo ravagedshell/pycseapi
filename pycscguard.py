@@ -245,6 +245,7 @@ class ScriptAssist:
             head (dict): A dictionary containing the headers we want to pass
             payload (dict): A dictionary containing the payload we want to send
             authentication (list): A list of username/password to authenticate with
+            params (dict): Query to paramatize and send to a GET request
 
         Returns:
             response: Dictionary containing response raw data
@@ -254,7 +255,8 @@ class ScriptAssist:
             "POST" : self.__send_post_request,
             "PATCH" : self.__send_patch_request,
             "DELETE" : self.__send_delete_request,
-            "GET" : self.__send_get_request
+            "GET" : self.__send_get_request,
+            "PUT" : self.__send_put_request
         }
 
         return method_switcher.get(method)(
@@ -289,7 +291,7 @@ class ScriptAssist:
         elif response.status_code >= 200 and response.status_code < 300:
             response = response.json()
         else:
-            reponse = f"Received HTTP status code {response.status_code}; unhandled error"
+            response = f"Received HTTP status code {response.status_code}; unhandled error"
 
         return response
 
@@ -382,12 +384,20 @@ class ScriptAssist:
         request = requests.delete(
             url=uri,
             auth=authentication,
-            timeout=5
+            timeout=5,
+            data=payload
         )
 
         return self.check_status_code(request)
 
-    def __send_get_request(self, uri, authentication, head=None, payload=None, params=None):
+    def __send_get_request(
+            self,
+            uri,
+            authentication,
+            head=None,
+            payload=None,
+            params=None
+            ):
         """ 
         Sends an HTTP get request
 
@@ -417,7 +427,34 @@ class ScriptAssist:
             timeout=5
         )
 
-        print(request.url)
+        return self.check_status_code(request)
+
+    def __send_put_request(
+            self,
+            uri,
+            authentication,
+            head=None,
+            payload=None,
+            params=None
+        ):
+
+        if authentication["auth_type"] == "bearer":
+            authentication = None
+
+        else:
+            authentication = (
+                authentication["username"],
+                authentication["password"]
+            )
+
+        request = requests.put(
+            url=uri,
+            headers=head,
+            auth=authentication,
+            data=payload,
+            timeout=5
+        )
+
         return self.check_status_code(request)
 
     # Load and Return Yaml File as Dictionary
